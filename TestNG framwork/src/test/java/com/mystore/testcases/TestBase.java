@@ -7,12 +7,11 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.remote.DesiredCapabilities;
 import org.testng.annotations.BeforeSuite;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Properties;
 
 
@@ -29,13 +28,15 @@ public class TestBase {
     public static WebDriver driver;
     public static Properties prop;
     public static FileInputStream fis;
-    public static DesiredCapabilities cap;
 
     @BeforeSuite
     public void properties() throws IOException {
 
         prop = new Properties();
-        fis = new FileInputStream(System.getProperty("user.dir") + "\\src\\test\\java\\com\\mystore\\config\\config.properties");
+        fis = new FileInputStream(Paths.get(
+                System.getProperty("user.dir"),
+                "src", "test", "java", "com", "mystore", "config", "config.properties"
+        ).toFile());
         prop.load(fis);
         System.out.println("Property file data" + prop);
     }
@@ -45,12 +46,13 @@ public class TestBase {
         properties();
         invokeBrowser("Chrome");
         driver.get(prop.getProperty("url"));
-        driver.manage().window().maximize();
+        if (!runningInCi()) {
+            driver.manage().window().maximize();
+        }
 
 
 
     }
-    @SuppressWarnings("deprication")
     public void invokeBrowser(String browser) {
 
 
@@ -61,10 +63,16 @@ public class TestBase {
                 WebDriverManager.chromedriver().setup();
                 ChromeOptions options = new ChromeOptions();
                 options.addArguments("--incognito");
-
-                cap = new DesiredCapabilities();
-                cap.setCapability(ChromeOptions.CAPABILITY, options);
-                driver= new ChromeDriver(cap);
+                if (runningInCi()) {
+                    options.addArguments(
+                            "--headless=new",
+                            "--no-sandbox",
+                            "--disable-dev-shm-usage",
+                            "--disable-gpu",
+                            "--window-size=1920,1080"
+                    );
+                }
+                driver = new ChromeDriver(options);
 
 
             } else if (browser.contains("Firefox")) {
@@ -81,6 +89,10 @@ public class TestBase {
         }
 
 
+    }
+
+    private boolean runningInCi() {
+        return "true".equalsIgnoreCase(System.getenv("CI"));
     }
 
 }
